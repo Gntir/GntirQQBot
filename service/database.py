@@ -1,5 +1,3 @@
-from warnings import catch_warnings
-
 import mysql.connector
 from botpy import logging
 
