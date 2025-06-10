@@ -1,6 +1,13 @@
+from dotenv import load_dotenv
+import os
 import mysql.connector
 from botpy import logging
 
+load_dotenv()
+DATABASE_HOST = os.getenv('DATABASE_HOST')
+DATABASE_USER = os.getenv('DATABASE_USER')
+DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
+DATABASE_DB = os.getenv('DATABASE_DB')
 _log = logging.get_logger()
 
 class Database:
@@ -10,10 +17,10 @@ class Database:
     def init_database(self):
         # 初始化 db 对象
         self.db = mysql.connector.connect(
-            host="localhost",  # MySQL服务器地址
-            user="root",  # 用户名
-            password="kikiY183509",  # 密码
-            database="py_amadeus"  # 数据库名称
+            host=DATABASE_HOST, # MySQL服务器地址
+            user=DATABASE_USER,  # 用户名
+            password=DATABASE_PASSWORD,  # 密码
+            database=DATABASE_DB  # 数据库名称
         )
         # 创建游标对象，用于执行SQL查询
         self.cursor = self.db.cursor()

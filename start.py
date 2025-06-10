@@ -2,11 +2,16 @@
 import asyncio
 import os
 
+from dotenv import load_dotenv
+import os
 import botpy
 from service.chat import ChatService
 from botpy import logging
 from botpy.message import C2CMessage
 
+load_dotenv()
+QQ_BOT_APPID = os.getenv('QQ_BOT_APPID')
+QQ_BOT_SECRET = os.getenv('QQ_BOT_SECRET')
 _log = logging.get_logger()
 chatService = ChatService()
 
@@ -34,6 +39,4 @@ if __name__ == "__main__":
     # 通过kwargs，设置需要监听的事件通道
     intents = botpy.Intents(public_messages=True)
     client = MyClient(intents=intents)
-    client.run(appid="102778112", secret="X7hHrR2dEpQ1cEqS4gIuW9mP2fIvZDrV")
-
-    # X7hHrR2dEpQ1cEqS4gIuW9mP2fIvZDrV
+    client.run(appid=QQ_BOT_APPID, secret=QQ_BOT_SECRET)

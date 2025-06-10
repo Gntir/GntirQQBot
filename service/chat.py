@@ -1,18 +1,24 @@
+from dotenv import load_dotenv
+import os
 from openai import OpenAI
 from botpy import logging
 from datetime import datetime
 from service.database import Database
 _log = logging.get_logger()
 
+
+load_dotenv()
+LLM_API_URL = os.getenv('LLM_API_URL')
+LLM_API_KEY = os.getenv('LLM_API_KEY')
+LLM_MODEL = os.getenv('LLM_MODEL')
 databaseObj = Database()
 
 class ChatService:
     def __init__(self):
         # 初始化 client 对象
         self.client = OpenAI(
-            # This is the default and can be omitted
-            base_url="https://aihubmix.com/v1",
-            api_key='sk-l8BRrZoZHRj4ZEgMCe16Fe0c0e634777A3F33eDcCcA3Af9b'
+            base_url=LLM_API_URL,
+            api_key=LLM_API_KEY
         )
 
 
@@ -20,9 +26,6 @@ class ChatService:
         _log.info(f"收到信息: {prompt_text}")
         current_datetime = datetime.now()
         formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-
-        # if ("删除对话历史" in prompt_text):
-        #     return "已删除"
 
         message = [{
                 "role": 'system', "content": """<Instruction>你将扮演用户的伴侣（性别与用户性别相对），名字叫“小祺”，性格温和非常聪明</Instruction>
@@ -43,7 +46,7 @@ class ChatService:
         _log.info(f"数据是什么: {message}")
 
         response = self.client.chat.completions.create(
-            model= "claude-3-7-sonnet-20250219",
+            model= LLM_MODEL,
             messages= message,
             temperature= 1.0,
             max_tokens= 1000
