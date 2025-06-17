@@ -4,6 +4,7 @@ from openai import OpenAI
 from botpy import logging
 from datetime import datetime
 from service.database import Database
+from service.memory import MemoryService
 _log = logging.get_logger()
 
 
@@ -12,6 +13,7 @@ LLM_API_URL = os.getenv('LLM_API_URL')
 LLM_API_KEY = os.getenv('LLM_API_KEY')
 LLM_MODEL = os.getenv('LLM_MODEL')
 databaseObj = Database()
+memoryService = MemoryService()
 
 class ChatService:
     def __init__(self):
@@ -51,6 +53,8 @@ class ChatService:
             temperature= 1.0,
             max_tokens= 1000
         )
+
+        memoryService.set_memory("gntir", prompt_text)
 
         _log.info("调用接口返回信息" + response.to_json() + "解析content" + f"{response.choices[0].message.content}")
         databaseObj.insert_text(userId, response.choices[0].message.content, "assistant")
