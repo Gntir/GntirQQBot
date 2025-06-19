@@ -61,10 +61,10 @@ class MemoryService:
     def get_memory_line(self, userId):
         memoryList = MemoryService.get_memory(self, userId)
         memoryStr = ""
-        for index, memoryObj in memoryList:
-            memoryStr += index + "." + memoryObj.memory + ";"
+        for index in range(len(memoryList)):
+            memoryStr += str(index) + "." + memoryList[index].get("memory") + ";"
 
-        _log.info(f"记忆信息 {memoryList, memoryStr}")
+        _log.info(f"记忆信息 {memoryStr}")
 
         response = self.client.chat.completions.create(
             model="gpt-4.1-mini",
@@ -88,5 +88,4 @@ class MemoryService:
 
     def get_memory(self, userId):
         response = self.m0Client.get_all(user_id=userId)
-        _log.info(f"get_all记忆信息 {response}")
         return response
