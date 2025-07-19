@@ -51,11 +51,12 @@ class MemoryService:
             ],
             tools=tools
         )
-        _log.info(f"调用记忆存储返回信息: {response.output}")
+        _log.info(f"调用记忆存储返回信息: {response.output[0]}")
 
-        args_dict = json.loads(response.output[0].arguments)
-        _log.info(f"参数转换: {args_dict, args_dict['content']}")
-        self.m0Client.add([{"role": "assistant", "content": args_dict['content']}], user_id=userId, metadata={"category": args_dict['metadata']})
+        if hasattr(response.output[0], "arguments"):
+            args_dict = json.loads(getattr(response.output[0], "arguments"))
+            _log.info(f"参数转换: {args_dict, args_dict['content']}")
+            self.m0Client.add([{"role": "assistant", "content": args_dict['content']}], user_id=userId, metadata={"category": args_dict['metadata']})
 
 
     def get_memory_line(self, userId):
@@ -63,8 +64,6 @@ class MemoryService:
         memoryStr = ""
         for index in range(len(memoryList)):
             memoryStr += str(index) + "." + memoryList[index].get("memory") + ";"
-
-        _log.info(f"记忆信息 {memoryStr}")
 
         response = self.client.chat.completions.create(
             model="gpt-4.1-mini",

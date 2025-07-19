@@ -91,41 +91,41 @@ class Database:
             Database.init_database(self)
             return []
 
-        def insert_thought(self, user, memory):
-            try:
-                _log.info(f"插入数据: {user, memory}")
-                sql = "INSERT INTO ai_memory (user, memory, updateTime) VALUES (%s, %s, NOW())"
-                self.cursor.execute(sql, (user, memory))
-                self.db.commit()
-                _log.info(f"插入数据成功")
-                return True
-            except Exception as e:
-                _log.error("出错了", e)
-                Database.init_database(self)
-                return False
+    def insert_thought(self, user, thought):
+        try:
+            _log.info(f"插入数据: {user, thought}")
+            sql = "INSERT INTO ai_thought (lastThought, currentThought, user, updateTime) VALUES (%s, %s, %s, NOW())"
+            self.cursor.execute(sql, ("", thought, user))
+            self.db.commit()
+            _log.info(f"插入数据成功")
+            return True
+        except Exception as e:
+            _log.error("出错了", e)
+            Database.init_database(self)
+            return False
 
-        def update_memory(self, user, memory):
-            try:
-                _log.info(f"更新数据: {user, memory}")
-                sql = "UPDATE ai_memory SET memory = %s, updateTime = NOW() WHERE user = %s"
-                self.cursor.execute(sql, (memory, user))
-                self.db.commit()
-                _log.info(f"更新数据成功")
-                return True
-            except Exception as e:
-                _log.error("出错了", e)
-                Database.init_database(self)
-                return False
+    def update_thought(self, user, thought):
+        try:
+            _log.info(f"更新数据: {user, thought}")
+            sql = "UPDATE ai_thought SET lastThought = %s, currentThought = %s, updateTime = NOW() WHERE user = %s"
+            self.cursor.execute(sql, ("", thought, user))
+            self.db.commit()
+            _log.info(f"更新数据成功")
+            return True
+        except Exception as e:
+            _log.error("出错了", e)
+            Database.init_database(self)
+            return False
 
-        def get_memory(self, user):
-            try:
-                _log.info(f"查询数据: {user}")
-                sql = "SELECT * FROM( SELECT * FROM ai_memory WHERE user='%s' ORDER BY id DESC LIMIT 50) AS temp ORDER BY id ASC" % user
-                self.cursor.execute(sql)
-                # 获取查询结果
-                results = self.cursor.fetchall()
-                return results
-            except Exception as e:
-                _log.error("出错了", e)
-                Database.init_database(self)
-                return []
+    def get_thought(self, user):
+        try:
+            _log.info(f"查询数据: {user}")
+            sql = "SELECT * FROM( SELECT * FROM ai_thought WHERE user='%s' ORDER BY id DESC LIMIT 1) AS temp ORDER BY id ASC" % user
+            self.cursor.execute(sql)
+            # 获取查询结果
+            results = self.cursor.fetchall()
+            return results
+        except Exception as e:
+            _log.error("出错了", e)
+            Database.init_database(self)
+            return []
