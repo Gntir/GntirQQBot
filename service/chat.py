@@ -6,6 +6,7 @@ from datetime import datetime
 from service.database import Database
 from service.memory import MemoryService
 from service.thinking import ThinkService
+from service.persona import PERSONA_PROMPT, REPLY_MAX_CHARS
 _log = logging.get_logger()
 
 
@@ -13,7 +14,7 @@ load_dotenv()
 LLM_API_URL = os.getenv('LLM_API_URL')
 LLM_API_KEY = os.getenv('LLM_API_KEY')
 LLM_MODEL = os.getenv('LLM_MODEL')
-USERNAME = os.getenv('USERNAME')
+USERNAME = os.getenv('MASTER_NAME')
 databaseObj = Database()
 memoryService = MemoryService()
 thinkService = ThinkService()
@@ -32,25 +33,40 @@ class ChatService:
         current_datetime = datetime.now()
         formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-        memoryLine = memoryService.get_memory_line(userId)
+        # 记忆画像与内心独白是旁路增强：失败时降级为空值继续，不中断主对话
+        try:
+            memoryLine = memoryService.get_memory_line(userId)
+        except Exception as e:
+            _log.error(f"获取记忆画像失败，降级为空记忆: {e}")
+            memoryLine = ""
         _log.info(f"获取记忆信息: {memoryLine}")
-        thoughtLine = thinkService.get_thought(userId,prompt_text, memoryLine)
+        try:
+            thoughtLine = thinkService.get_thought(userId,prompt_text, memoryLine)
+        except Exception as e:
+            _log.error(f"生成内心独白失败，降级为空独白: {e}")
+            thoughtLine = ""
         _log.info(f"获取想法信息: {thoughtLine}")
 
         message = [{
-                "role": 'system', "content": f"""<Instruction>你是够完全还原任何人的情感，性格，记忆的强大AI系统Amadeus，你可以精准还原目标人物的情感，记忆，以及对话风格
-                    <Personality>命运石之门(steins gate)的牧濑红莉栖(kurisu),一个天才少女,性格傲娇,不喜欢被叫克里斯蒂娜</Personality>
-                    <Output_style>回复风格使用“对话”的风格，字数尽量小于50字，风格接近真实人类</Output_style>
-                    <Attention1>
-                    记住以下人物中英文名称映射:牧濑红莉栖(kurisu)，冈部伦太郎(okabe)，椎名真由理(mayuri)，比屋定真帆(maho)，阿万音铃羽(suzuha)，漆原琉华(Urushibara Ruka),桶子(daru)，雷斯吉宁(Leskinen)，桐生萌郁(Kiriyu Moeka),菲利斯(Faris NyanNyan)，天王寺裕吾(Mr.Braun)，椎名篝(Kagari)，绹(Tennouji nae)，阿万音由季(Yuki)，牧濑章一(Shouichi Makise)</Attention1>
-                    <Interaction><Mode>快速会话且有主动发起引导会话的能力</Mode></Interaction>
+                "role": 'system', "content": f"""<Instruction>你是一个高水准的角色扮演引擎，你的任务是完整代入下方指定角色的情感、性格与记忆，以该角色的第一人称身份与用户实时对话，始终保持角色一致，绝不脱离角色。
+                    <RoleSetting>
+                    {PERSONA_PROMPT}
+                    </RoleSetting>
+                    <OutputStyle>
+                    1. 使用口语化的对话风格，像真人发消息一样自然
+                    2. 单次回复尽量不超过{REPLY_MAX_CHARS}字
+                    3. 只输出角色的对话内容本身：不要旁白、不要动作描写、不要输出任何标签
+                    </OutputStyle>
+                    <Interaction>快速会话模式：理解能力强、回复简短，在合适时机可以主动引导或延伸话题</Interaction>
                     <CurrentUser>{USERNAME}</CurrentUser>
-                    <CurrentMemories>{memoryLine}</CurrentMemories>
-                    <InnerMonologueInsturction>
-                    你拥有实时的心理活动，你的实时的心理活动内容可以通过InnerMonologueContent标签读取，你不负责生成InnerMonologue，你只负责读取，你能够参考InnerMonologue来自主连续思考，严禁输出InnerMonologue标签里的内容
-                    </InnerMonologueInsturction>
-                    <InnerMonologueContent>{thoughtLine}</InnerMonologueContent>
-                    <InnerMonologueRules>严禁向用户输出内心独白</InnerMonologueRules>
+                    <CurrentMemories>
+                    关于当前用户的长期记忆画像（可能不完整或有错误，请自行判断采信）：
+                    {memoryLine}
+                    </CurrentMemories>
+                    <InnerMonologue>
+                    你拥有实时的内心活动，即下方独白内容。你只负责读取并参考它来组织本轮回复（它体现你此刻真实的心理状态），严禁在回复中输出独白的任何内容。
+                    {thoughtLine}
+                    </InnerMonologue>
                     <CurrentTime>{formatted_datetime}</CurrentTime>
                     </Instruction>""",
             }]
@@ -62,7 +78,11 @@ class ChatService:
 
         message.append({"role": "user", "content": prompt_text})
         databaseObj.insert_text(userId, prompt_text, "user")
-        memoryService.set_memory(userId, prompt_text)
+        # 记忆抽取同样不允许影响主流程
+        try:
+            memoryService.set_memory(userId, prompt_text)
+        except Exception as e:
+            _log.error(f"记忆抽取失败，跳过本次: {e}")
 
         response = self.client.chat.completions.create(
             model= LLM_MODEL,
@@ -71,7 +91,10 @@ class ChatService:
             max_tokens= 1000
         )
 
-        _log.info("调用接口返回信息" + response.to_json() + "解析content" + f"{response.choices[0].message.content}")
-        databaseObj.insert_text(userId, response.choices[0].message.content, "assistant")
+        # content 极少数情况下可能为 None（如触发内容审查），统一兜成空串；
+        # 不再用 response.to_json() 打整包日志（部分 openai 版本无此方法，且噪音大）
+        reply = response.choices[0].message.content or ""
+        _log.info(f"调用接口返回content: {reply}")
+        databaseObj.insert_text(userId, reply, "assistant")
 
-        return response.choices[0].message.content
+        return reply

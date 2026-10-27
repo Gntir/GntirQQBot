@@ -1,0 +1,49 @@
+# qqAmadeus QQ 机器人 systemd 服务配置
+# 安装方法见文件底部注释，使用前先修改 User / WorkingDirectory / ExecStart 三处
+
+[Unit]
+Description=qqAmadeus QQ Bot
+# 网络就绪后再启动；同时列出各发行版的 MySQL 服务名（不存在的会被自动忽略）
+After=network-online.target mysql.service mysqld.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# !! 三处需要按服务器实际情况修改 !!
+# 运行用户（建议非 root）
+User=ubuntu
+# 项目目录（.env 和 service 包都在这里，必须是绝对路径）
+WorkingDirectory=/opt/qqAmadeus
+# python 解释器路径（有 venv 用 venv 里的，没有则类似 /usr/bin/python3）
+ExecStart=/opt/qqAmadeus/.venv/bin/python start.py
+
+# 进程崩溃后 5 秒自动拉起 —— 这是 screen 做不到的核心能力
+# 注：即使 MySQL 还没就绪导致启动失败，也会每 5 秒重试直到成功（Database 有重连逻辑）
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+
+# 关闭 Python 输出缓冲，日志实时写入 journald
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+# ============ 安装步骤 ============
+# 1. 上传到服务器：
+#      sudo cp deploy/qqamadeus.service /etc/systemd/system/
+# 2. 修改上面三处路径/用户：
+#      sudo nano /etc/systemd/system/qqamadeus.service
+# 3. 启用并启动（enable = 开机自启）：
+#      sudo systemctl daemon-reload
+#      sudo systemctl enable --now qqamadeus
+# 4. 查看状态 / 实时日志（替代 screen 里盯终端）：
+#      systemctl status qqamadeus
+#      journalctl -u qqamadeus -f
+#      journalctl -u qqamadeus --since "1 hour ago"   # 回溯历史日志
+# 5. 日常操作：
+#      sudo systemctl restart qqamadeus   # 改完代码重启
+#      sudo systemctl stop qqamadeus      # 停止
+#
+# !! 注意：启动 systemd 服务前，务必先停掉原来 screen 里的实例 !!
+# 两个实例同时在线会各自收到事件、重复回复消息

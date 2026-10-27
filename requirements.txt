@@ -1,0 +1,6 @@
+# 直接依赖（版本取自当前验证过可用的 venv，transitive 依赖由 pip 自动解析）
+qq-botpy==1.2.1
+openai==1.78.0
+mem0ai==0.1.108
+mysql-connector-python==9.3.0
+python-dotenv==1.1.0
